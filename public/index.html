@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+    <head>
+
+    </head>
+    <body>
+        <input type="file" id="fileChooser">
+        <button id="splitBtn">Split</button>
+        <script>
+            let fileChooser = document.getElementById("fileChooser");
+            let splitBtn = document.getElementById("splitBtn");
+            
+            function splitICS(data, splitInterval){
+                let portions = [];
+                let header = "";
+                let lines = data.split(/\r?\n/);
+                let portionIndex = 0;
+                let headerPassed = false;
+                let insideEvent = false;
+                let eventEndIndex = 0;
+                // console.log(lines.length);
+                for(let i = 0; i < lines.length; i++){
+                    let ln = lines[i];
+                    //console.log(ln);
+                    //console.log(ln == "BEGIN:VEVENT")
+                    if(ln == "BEGIN:VEVENT"){
+                        //console.log('begin vevent');
+                        insideEvent = true;
+                        headerPassed = true;
+                        if(portions[portionIndex] == null){
+                            portions[portionIndex] = header;
+                        }
+                    }
+                    if(!headerPassed){
+                        header += ln + "\n";
+                    }
+                    if(headerPassed && insideEvent){
+                        portions[portionIndex] += ln + "\n";
+                    }
+            
+                    if(ln == "END:VEVENT"){
+                        //console.log(currentPortion);
+                        insideEvent = false;
+                        eventEndIndex += 1;
+                        if( (eventEndIndex % splitInterval == 0) || (lines[i+1] == "END:VCALENDAR")){
+                            portions[portionIndex] += "END:VCALENDAR" + "\n";
+                            portionIndex += 1;
+                        }
+                        
+                    }
+                }
+                return portions;
+            }
+            
+            function download(filename, text) {
+                var element = document.createElement('a');
+                element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+                element.setAttribute('download', filename);
+              
+                element.style.display = 'none';
+                document.body.appendChild(element);
+              
+                element.click();
+              
+                document.body.removeChild(element);
+              }
+            
+            splitBtn.onclick = () => {
+                let blobFile = fileChooser.files[0];
+                console.log(blobFile);
+                let reader = new FileReader();
+            
+                reader.readAsText(blobFile);
+              
+                reader.onload = function() {
+                  let ics = reader.result;
+                  let portions = splitICS(ics, 1000);
+                  let originalName = blobFile.name.substring(0, blobFile.name.length - 4);
+            
+                  for(let i = 0; i < portions.length; i++){
+                    download(originalName + "_" + (i + 1) + ".ics", portions[i]);
+                  }
+                };
+            }
+    </script>
+    </body>
+   
+</html>
